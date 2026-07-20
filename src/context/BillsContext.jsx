@@ -8,6 +8,7 @@ import {
 import { supabase } from '../lib/supabase'
 import { useAuth } from './AuthContext'
 import { useToast } from './ToastContext'
+import { maybeNotifyDue } from '../lib/reminders'
 
 const BillsContext = createContext(null)
 
@@ -42,6 +43,7 @@ export function BillsProvider({ children }) {
       toast('Could not load your bills.', 'error')
     } else {
       setBills(data ?? [])
+      maybeNotifyDue(data ?? []) // once-per-day due summary, if enabled
     }
     setLoading(false)
   }, [toast])
@@ -162,6 +164,27 @@ export function BillsProvider({ children }) {
     [bills, toast],
   )
 
+  // ---- Payment history for a single bill ---------------------------------
+  const listPayments = useCallback(async (billId) => {
+    const { data, error } = await supabase
+      .from('payments')
+      .select('*')
+      .eq('bill_id', billId)
+      .order('paid_date', { ascending: false })
+    if (error) throw error
+    return data ?? []
+  }, [])
+
+  // ---- All payments (with each payment's bill category) for analytics -----
+  const listAllPayments = useCallback(async () => {
+    const { data, error } = await supabase
+      .from('payments')
+      .select('id, amount_paid, paid_date, bill_id, bills(category, name)')
+      .order('paid_date', { ascending: true })
+    if (error) throw error
+    return data ?? []
+  }, [])
+
   const value = {
     bills,
     loading,
@@ -171,6 +194,8 @@ export function BillsProvider({ children }) {
     updateBill,
     deleteBill,
     markPaid,
+    listPayments,
+    listAllPayments,
   }
 
   return <BillsContext.Provider value={value}>{children}</BillsContext.Provider>

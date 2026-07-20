@@ -1,14 +1,45 @@
 import { useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { LogOut, User } from 'lucide-react'
+import { Bell, LogOut, User } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import { useToast } from '../context/ToastContext'
+import Switch from './ui/Switch'
+import {
+  notificationsSupported,
+  remindersEnabled,
+  enableReminders,
+  disableReminders,
+} from '../lib/reminders'
 import { EASE } from '../lib/motion'
 
 export default function AccountMenu() {
   const { user, signOut } = useAuth()
+  const toast = useToast()
   const [open, setOpen] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [reminders, setReminders] = useState(false)
   const ref = useRef(null)
+
+  useEffect(() => {
+    setReminders(remindersEnabled())
+  }, [open])
+
+  const toggleReminders = async (next) => {
+    if (!next) {
+      disableReminders()
+      setReminders(false)
+      return
+    }
+    const result = await enableReminders()
+    if (result === 'granted') {
+      setReminders(true)
+      toast('Reminders on. We’ll flag due bills when you open DueWell.', 'success')
+    } else if (result === 'denied') {
+      toast('Notifications are blocked in your browser settings.', 'error')
+    } else {
+      toast('Notifications aren’t supported here.', 'error')
+    }
+  }
 
   useEffect(() => {
     const onClick = (e) => {
@@ -61,6 +92,20 @@ export default function AccountMenu() {
                 </p>
               </div>
             </div>
+
+            {notificationsSupported() && (
+              <div className="flex items-center justify-between border-b border-ink-100 px-4 py-3">
+                <div className="flex items-center gap-2.5">
+                  <Bell className="h-4.5 w-4.5 text-ink-400" />
+                  <div>
+                    <p className="text-sm font-medium text-ink-900">Reminders</p>
+                    <p className="text-xs text-ink-400">Flag due bills on open</p>
+                  </div>
+                </div>
+                <Switch checked={reminders} onChange={toggleReminders} />
+              </div>
+            )}
+
             <button
               onClick={handleSignOut}
               disabled={busy}

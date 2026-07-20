@@ -49,6 +49,16 @@ export function billStatus(bill, now = new Date()) {
   return daysUntil(bill.due_date, now) < 0 ? 'overdue' : 'pending'
 }
 
+// A bill can be marked paid when it's overdue, due today, or due within this
+// many days. This stops a recurring bill (which rolls its due date forward on
+// payment) from being pre-paid for future months over and over.
+export const PAYABLE_GRACE_DAYS = 7
+
+export function isPayable(bill, now = new Date()) {
+  if (bill.status === 'paid') return false
+  return daysUntil(bill.due_date, now) <= PAYABLE_GRACE_DAYS
+}
+
 /** Human relative label for a due date, e.g. "Due today", "3 days left", "5 days overdue". */
 export function dueLabel(date, now = new Date()) {
   const n = daysUntil(date, now)

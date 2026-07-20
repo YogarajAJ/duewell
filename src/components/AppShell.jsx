@@ -1,5 +1,7 @@
 import BottomNav from './BottomNav'
 import AccountMenu from './AccountMenu'
+import OfflineBanner from './OfflineBanner'
+import InstallPrompt from './InstallPrompt'
 
 /** DueWell wordmark used in the header. */
 export function Wordmark({ className = '' }) {
@@ -36,7 +38,9 @@ export default function AppShell({ children, header }) {
           </div>
         </header>
       )}
+      <OfflineBanner />
       <main className="flex-1 px-4 pb-28 pt-4">{children}</main>
+      <InstallPrompt />
       <BottomNav />
     </div>
   )

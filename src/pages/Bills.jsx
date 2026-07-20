@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import BillCard from '../components/BillCard'
 import BillSheet from '../components/BillSheet'
+import PaymentSheet from '../components/PaymentSheet'
+import BillDetailSheet from '../components/BillDetailSheet'
 import Fab from '../components/ui/Fab'
 import EmptyState from '../components/ui/EmptyState'
 import { BillCardSkeleton } from '../components/ui/Skeleton'
@@ -13,6 +15,18 @@ export default function Bills() {
   const { bills, loading, addBill, updateBill, deleteBill, markPaid } = useBills()
   const [sheetOpen, setSheetOpen] = useState(false)
   const [editing, setEditing] = useState(null)
+  const [detailId, setDetailId] = useState(null)
+  const [payingId, setPayingId] = useState(null)
+
+  // Derive live bills by id so open sheets reflect the latest data.
+  const detailBill = useMemo(
+    () => bills.find((b) => b.id === detailId) ?? null,
+    [bills, detailId],
+  )
+  const payingBill = useMemo(
+    () => bills.find((b) => b.id === payingId) ?? null,
+    [bills, payingId],
+  )
 
   const { pending, paid } = useMemo(() => {
     const withStatus = bills.map((b) => ({ ...b, _status: billStatus(b) }))
@@ -31,6 +45,7 @@ export default function Bills() {
     setSheetOpen(true)
   }
   const openEdit = (bill) => {
+    setDetailId(null)
     setEditing(bill)
     setSheetOpen(true)
   }
@@ -43,6 +58,22 @@ export default function Bills() {
     } catch {
       /* toast + rollback handled in context */
     }
+  }
+
+  const handleDelete = (bill) => {
+    setDetailId(null)
+    deleteBill(bill.id)
+  }
+
+  const handleConfirmPayment = async ({ amount, paidOn }) => {
+    if (!payingBill) return
+    await markPaid(payingBill, { amount, paidOn }) // throws → PaymentSheet stays open
+    setPayingId(null)
+  }
+
+  const startPayment = (bill) => {
+    setDetailId(null)
+    setPayingId(bill.id)
   }
 
   return (
@@ -79,9 +110,10 @@ export default function Bills() {
                   <BillCard
                     key={bill.id}
                     bill={bill}
+                    onOpen={(b) => setDetailId(b.id)}
                     onEdit={openEdit}
-                    onDelete={(b) => deleteBill(b.id)}
-                    onTogglePaid={(b) => markPaid(b)}
+                    onDelete={handleDelete}
+                    onTogglePaid={startPayment}
                   />
                 ))}
               </AnimatePresence>
@@ -99,8 +131,9 @@ export default function Bills() {
                     <BillCard
                       key={bill.id}
                       bill={bill}
+                      onOpen={(b) => setDetailId(b.id)}
                       onEdit={openEdit}
-                      onDelete={(b) => deleteBill(b.id)}
+                      onDelete={handleDelete}
                     />
                   ))}
                 </AnimatePresence>
@@ -111,11 +144,28 @@ export default function Bills() {
       )}
 
       <Fab onClick={openAdd} />
+
       <BillSheet
         open={sheetOpen}
         bill={editing}
         onClose={() => setSheetOpen(false)}
         onSave={handleSave}
+      />
+
+      <BillDetailSheet
+        open={!!detailBill}
+        bill={detailBill}
+        onClose={() => setDetailId(null)}
+        onEdit={openEdit}
+        onDelete={handleDelete}
+        onMarkPaid={startPayment}
+      />
+
+      <PaymentSheet
+        open={!!payingBill}
+        bill={payingBill}
+        onClose={() => setPayingId(null)}
+        onConfirm={handleConfirmPayment}
       />
     </>
   )

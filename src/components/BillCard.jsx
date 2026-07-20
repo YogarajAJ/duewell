@@ -1,47 +1,20 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { motion, useMotionValue, animate } from 'framer-motion'
-import {
-  Pencil,
-  Trash2,
-  Check,
-  Home,
-  Zap,
-  Wifi,
-  CreditCard,
-  Car,
-  ShoppingCart,
-  HeartPulse,
-  Landmark,
-  Receipt,
-} from 'lucide-react'
+import { Pencil, Trash2, Check } from 'lucide-react'
 import StatusPill from './ui/StatusPill'
 import { cn } from '../lib/cn'
-import { formatCurrency, formatDate, dueLabel, billStatus } from '../lib/format'
+import { categoryMeta } from '../lib/categoryMeta'
+import { formatCurrency, formatDate, dueLabel, billStatus, isPayable } from '../lib/format'
 import { listItem, tap } from '../lib/motion'
-
-// Category → icon + tint. Falls back to a generic receipt.
-const CATEGORY = {
-  Housing: { Icon: Home, tint: 'bg-indigo-100 text-indigo-700' },
-  Utilities: { Icon: Zap, tint: 'bg-amber-100 text-amber-700' },
-  Internet: { Icon: Wifi, tint: 'bg-sky-100 text-sky-700' },
-  Loan: { Icon: Landmark, tint: 'bg-rose-100 text-rose-700' },
-  Card: { Icon: CreditCard, tint: 'bg-violet-100 text-violet-700' },
-  Transport: { Icon: Car, tint: 'bg-cyan-100 text-cyan-700' },
-  Shopping: { Icon: ShoppingCart, tint: 'bg-pink-100 text-pink-700' },
-  Health: { Icon: HeartPulse, tint: 'bg-emerald-100 text-emerald-700' },
-  Subscription: { Icon: Receipt, tint: 'bg-teal-100 text-teal-700' },
-}
 
 const REVEAL = 152 // px of action tray revealed on swipe
 
-export default function BillCard({ bill, onEdit, onDelete, onTogglePaid }) {
+export default function BillCard({ bill, onEdit, onDelete, onTogglePaid, onOpen }) {
   const status = billStatus(bill)
-  const { Icon, tint } = CATEGORY[bill.category] ?? {
-    Icon: Receipt,
-    tint: 'bg-ink-100 text-ink-600',
-  }
+  const { Icon, tint } = categoryMeta(bill.category)
   const x = useMotionValue(0)
   const [open, setOpen] = useState(false)
+  const draggedRef = useRef(false)
 
   const settle = (to) => {
     animate(x, to, { type: 'spring', stiffness: 500, damping: 40 })
@@ -51,6 +24,18 @@ export default function BillCard({ bill, onEdit, onDelete, onTogglePaid }) {
   const handleDragEnd = (_e, info) => {
     const shouldOpen = info.offset.x < -REVEAL / 2 || info.velocity.x < -400
     settle(shouldOpen ? -REVEAL : 0)
+  }
+
+  const handleClick = () => {
+    if (open) {
+      settle(0)
+      return
+    }
+    if (draggedRef.current) {
+      draggedRef.current = false
+      return
+    }
+    onOpen?.(bill)
   }
 
   const isPaid = status === 'paid'
@@ -97,11 +82,15 @@ export default function BillCard({ bill, onEdit, onDelete, onTogglePaid }) {
         dragConstraints={{ left: -REVEAL, right: 0 }}
         dragElastic={0.06}
         dragMomentum={false}
+        onDragStart={() => (draggedRef.current = false)}
+        onDrag={(_e, info) => {
+          if (Math.abs(info.offset.x) > 4) draggedRef.current = true
+        }}
         onDragEnd={handleDragEnd}
-        onClick={() => open && settle(0)}
+        onClick={handleClick}
         className={cn(
           'relative flex items-center gap-3.5 bg-white p-4 shadow-card',
-          'cursor-grab touch-pan-y active:cursor-grabbing',
+          'cursor-pointer touch-pan-y active:cursor-grabbing',
         )}
       >
         <div
@@ -147,8 +136,8 @@ export default function BillCard({ bill, onEdit, onDelete, onTogglePaid }) {
         </div>
       </motion.div>
 
-      {/* Quick "mark paid" affordance for pending items */}
-      {!isPaid && !open && (
+      {/* Quick "mark paid" affordance — only when the bill is actually due */}
+      {isPayable(bill) && !open && (
         <motion.button
           whileTap={tap}
           onClick={() => onTogglePaid?.(bill)}

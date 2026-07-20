@@ -8,7 +8,9 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "generate-icons": "node scripts/generate-icons.mjs"
+    "generate-icons": "node scripts/generate-icons.mjs",
+    "generate-screenshots": "node scripts/generate-screenshots.mjs",
+    "generate-assets": "npm run generate-icons && npm run generate-screenshots"
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.1.0",

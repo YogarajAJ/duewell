@@ -62,7 +62,12 @@ async function main() {
   console.log('Generating DueWell icons…')
   await render(rounded, 192, resolve(iconDir, 'pwa-192x192.png'))
   await render(rounded, 512, resolve(iconDir, 'pwa-512x512.png'))
+  // Maskable icons are full-bleed (no rounding): Android applies its own
+  // adaptive mask. The motif sits well inside the 80% safe zone, so nothing
+  // meaningful is clipped at any mask shape. We ship both sizes so PWABuilder
+  // reports a complete maskable set.
   await render(full, 512, resolve(iconDir, 'maskable-512x512.png'))
+  await render(full, 192, resolve(iconDir, 'maskable-192x192.png'))
   // iOS applies its own rounded mask, so the source must be a full square.
   await render(full, 180, resolve(pub, 'apple-touch-icon.png'), { flatten: true })
   await render(rounded, 32, resolve(pub, 'favicon-32.png'))
