@@ -7,6 +7,7 @@ import { VitePWA } from 'vite-plugin-pwa'
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
   const supabaseUrl = env.VITE_SUPABASE_URL || ''
+  const escapeRegExp = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
   return {
     plugins: [
@@ -60,22 +61,28 @@ export default defineConfig(({ mode }) => {
           navigateFallback: '/index.html',
           cleanupOutdatedCaches: true,
           clientsClaim: true,
-          runtimeCaching: [
-            {
-              // Supabase REST reads: serve fresh when online, fall back to the
-              // last response when offline so the app still shows your data.
-              urlPattern: ({ url }) =>
-                !!supabaseUrl && url.href.startsWith(`${supabaseUrl}/rest/`),
-              handler: 'NetworkFirst',
-              method: 'GET',
-              options: {
-                cacheName: 'supabase-rest',
-                networkTimeoutSeconds: 5,
-                expiration: { maxEntries: 120, maxAgeSeconds: 60 * 60 * 24 },
-                cacheableResponse: { statuses: [0, 200] },
-              },
-            },
-          ],
+          // Only register the Supabase route when a URL is configured.
+          // urlPattern MUST be a RegExp, not a closure: generateSW stringifies
+          // it into sw.js via .toString(), so a build-time variable like
+          // `supabaseUrl` would be undefined at runtime and throw on every
+          // request (ReferenceError: supabaseUrl is not defined).
+          runtimeCaching: supabaseUrl
+            ? [
+                {
+                  // Supabase REST reads: serve fresh when online, fall back to
+                  // the last response when offline so the app still shows data.
+                  urlPattern: new RegExp(`^${escapeRegExp(supabaseUrl)}/rest/`),
+                  handler: 'NetworkFirst',
+                  method: 'GET',
+                  options: {
+                    cacheName: 'supabase-rest',
+                    networkTimeoutSeconds: 5,
+                    expiration: { maxEntries: 120, maxAgeSeconds: 60 * 60 * 24 },
+                    cacheableResponse: { statuses: [0, 200] },
+                  },
+                },
+              ]
+            : [],
         },
         devOptions: {
           enabled: true,
@@ -94,7 +101,13 @@ export default defineConfig(({ mode }) => {
             if (id.includes('framer-motion') || id.includes('popmotion') || id.includes('motion-dom'))
               return 'motion'
             if (id.includes('@supabase')) return 'supabase'
-            if (/[\\/]react|[\\/]scheduler|use-sync-external-store/.test(id))
+            // Match ONLY the leaf React runtime packages — the `(name)[\\/]`
+            // boundary stops `react` from also matching `react-router-dom`.
+            // If react-router-dom landed here it would drag its `history` /
+            // `@remix-run/router` deps (which live in `vendor`) into this
+            // chunk, creating a react-vendor⇄vendor cycle that leaves React
+            // undefined when `vendor` runs first (React.forwardRef crash).
+            if (/[\\/]node_modules[\\/](react|react-dom|scheduler|use-sync-external-store|react-is)[\\/]/.test(id))
               return 'react-vendor'
             return 'vendor'
           },
