@@ -13,7 +13,12 @@ export default defineConfig(({ mode }) => {
     plugins: [
       react(),
       VitePWA({
-        registerType: 'autoUpdate',
+        // 'prompt' (not 'autoUpdate'): the new service worker waits instead of
+        // reloading silently, so <ReloadPrompt> can ask the user to reload.
+        registerType: 'prompt',
+        // We register the SW ourselves via useRegisterSW() in <ReloadPrompt>,
+        // so tell the plugin not to also inject a registration script.
+        injectRegister: null,
         includeAssets: [
           'favicon.svg',
           'favicon-32.png',
