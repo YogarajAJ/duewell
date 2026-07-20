@@ -1,12 +1,8 @@
-[
-  {
-    "relation": ["delegate_permission/common.handle_all_urls"],
-    "target": {
-      "namespace": "android_app",
-      "package_name": "REPLACE_WITH_YOUR_ANDROID_PACKAGE_NAME",
-      "sha256_cert_fingerprints": [
-        "REPLACE_WITH_YOUR_APP_SIGNING_SHA256_FINGERPRINT"
-      ]
-    }
-  }
-]
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "app.vercel.duewell_opal.twa",
+        "sha256_cert_fingerprints": ["01:E2:28:DD:2E:D6:24:48:34:E9:C3:C7:29:84:66:EC:25:74:2E:7A:AF:55:23:2A:B3:04:A5:2F:41:22:BC:D3"]
+      }
+    }]
