@@ -1,17 +1,20 @@
-import { lazy, Suspense } from 'react'
 import { Routes, Route, useLocation, Navigate } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import AppShell from './components/AppShell'
+import ErrorBoundary from './components/ErrorBoundary'
 import Splash from './components/Splash'
 import Dashboard from './pages/Dashboard'
 import Bills from './pages/Bills'
+import Insights from './pages/Insights'
 import Auth from './pages/Auth'
 import { useAuth } from './context/AuthContext'
 import { BillsProvider } from './context/BillsContext'
 import { pageVariants } from './lib/motion'
 
-// Charts are heavy — only load the Insights bundle when that tab is opened.
-const Insights = lazy(() => import('./pages/Insights'))
+// Note: Insights is imported eagerly (not React.lazy). A lazy/Suspense child
+// inside <AnimatePresence mode="wait"> can leave the view blank after
+// navigating back. Recharts is still isolated in its own `charts` chunk via
+// manualChunks, so we keep the caching benefit without the animation glitch.
 
 function Page({ children }) {
   return (
@@ -39,23 +42,16 @@ export default function App() {
   return (
     <BillsProvider>
       <AppShell>
-        <AnimatePresence mode="wait">
-          <Routes location={location} key={location.pathname}>
-            <Route path="/" element={<Page><Dashboard /></Page>} />
-            <Route path="/bills" element={<Page><Bills /></Page>} />
-            <Route
-              path="/insights"
-              element={
-                <Page>
-                  <Suspense fallback={<div className="h-40" />}>
-                    <Insights />
-                  </Suspense>
-                </Page>
-              }
-            />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </AnimatePresence>
+        <ErrorBoundary resetKey={location.pathname}>
+          <AnimatePresence mode="wait">
+            <Routes location={location} key={location.pathname}>
+              <Route path="/" element={<Page><Dashboard /></Page>} />
+              <Route path="/bills" element={<Page><Bills /></Page>} />
+              <Route path="/insights" element={<Page><Insights /></Page>} />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </AnimatePresence>
+        </ErrorBoundary>
       </AppShell>
     </BillsProvider>
   )
